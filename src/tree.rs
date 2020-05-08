@@ -4,14 +4,20 @@ use std::iter::FromIterator;
 use tokio::fs;
 use tokio::stream;
 
+/// Trait for `Tree` to create your own `TreeBuilder`
 #[async_trait]
 pub trait TreeBuilder {
+    /// Build a vector of `Tree`
     async fn build_tree(dir_path: String) -> Vec<Tree>;
+    /// Compare two tree directories and return true if are different
     fn tree_diff(dir_tree: Vec<Tree>, dir_tree_comp: Vec<Tree>) -> bool;
+    /// Get the content by string of all the files in one tree directory
     async fn get_content_files(dir_tree: Vec<Tree>) -> Vec<String>;
+    /// compare all the content from two tree directories and return true if both are equal
     fn compare_dir_content(dir_content: Vec<String>, dir_content_comp: Vec<String>) -> bool;
 }
 
+/// Represent a tree directory
 #[derive(Debug, PartialEq, Clone)]
 pub struct Tree {
     pub name: String,
@@ -80,6 +86,20 @@ impl From<Tree> for TreeComp {
 
 #[async_trait]
 impl TreeBuilder for Tree {
+    /// Build a vector of `Tree`
+    ///
+    /// # Example
+    ///
+    /// ```rust
+    /// use spielrs_diff::tree::{Tree, TreeBuilder};
+    ///
+    /// #[tokio::main]
+    /// async fn main() {
+    ///     let dir_one = Tree::build_tree("./mocks/dir_one".to_string()).await;
+    ///
+    ///     println!("{:#?}", dir_one);
+    /// }
+    /// ```
     async fn build_tree(dir_path: String) -> Vec<Tree> {
         let mut entries = fs::read_dir(dir_path).await.unwrap();
         let mut tree: Vec<Tree> = vec![];
@@ -99,14 +119,54 @@ impl TreeBuilder for Tree {
         tree
     }
 
+    /// Compare two tree directories and return true if are different
+    ///
+    /// # Example
+    ///
+    /// ```rust
+    /// use spielrs_diff::tree::{Tree, TreeBuilder};
+    ///
+    /// #[tokio::test]
+    /// async fn should_return_false_equal_dir_tree() {
+    ///     let dir_one = Tree::build_tree("./mocks/dir_one".to_string()).await;
+    ///     let dir_two = Tree::build_tree("./mocks/dir_two".to_string()).await;
+    ///
+    ///     let diff = Tree::tree_diff(dir_one, dir_two);
+    ///
+    ///     assert_eq!(diff, false);
+    /// }
+    /// ```
     fn tree_diff(dir_tree: Vec<Tree>, dir_tree_comp: Vec<Tree>) -> bool {
         let dir_tree_from: Vec<TreeComp> = dir_tree.into_iter().map(TreeComp::from).collect();
         let dir_tree_comp_from: Vec<TreeComp> =
             dir_tree_comp.into_iter().map(TreeComp::from).collect();
 
-        dir_tree_from == dir_tree_comp_from
+        dir_tree_from != dir_tree_comp_from
     }
 
+    /// Get the content by string of all the files in one tree directory
+    ///
+    /// # Example
+    ///
+    /// ```rust
+    /// use spielrs_diff::tree::{Tree, TreeBuilder};
+    ///
+    /// #[tokio::test]
+    /// async fn should_return_all_file_content() {
+    ///     let dir_one = Tree::build_tree("./mocks/dir_one".to_string()).await;
+    ///     let content = Tree::get_content_files(dir_one).await;
+    ///
+    ///     assert_eq!(
+    ///         content,
+    ///         vec!(
+    ///             "Hello world",
+    ///             "print(\"This line will be printed.\")",
+    ///             "new language",
+    ///             "fn main() {\n    println(\"hello world\")\n}\n",
+    ///         )
+    ///     )
+    /// }
+    /// ```
     async fn get_content_files(dir_tree: Vec<Tree>) -> Vec<String> {
         let file_list: TreeFlatted = TreeFlatted::from_iter(dir_tree);
         let files = stream::iter(file_list.0);
@@ -119,6 +179,24 @@ impl TreeBuilder for Tree {
         file_content
     }
 
+    /// compare all the content from two tree directories and return true if both are equal
+    ///
+    /// # Example
+    ///
+    /// ```rust
+    /// use spielrs_diff::tree::{Tree, TreeBuilder};
+    ///
+    /// #[tokio::test]
+    /// async fn should_return_true_if_both_dir_content_are_equal() {
+    ///     let dir_one = Tree::build_tree("./mocks/dir_one".to_string()).await;
+    ///     let content_one = Tree::get_content_files(dir_one).await;
+    ///
+    ///     let dir_two = Tree::build_tree("./mocks/dir_two".to_string()).await;
+    ///     let content_two = Tree::get_content_files(dir_two).await;
+    ///
+    ///     assert_eq!(Tree::compare_dir_content(content_one, content_two), true);
+    /// }
+    /// ```
     fn compare_dir_content(dir_content: Vec<String>, dir_content_comp: Vec<String>) -> bool {
         dir_content.into_iter().all(move |content| {
             dir_content_comp
@@ -130,23 +208,23 @@ impl TreeBuilder for Tree {
 }
 
 #[tokio::test]
-async fn should_return_true_equal_dir_tree() {
+async fn should_return_false_equal_dir_tree() {
     let dir_one = Tree::build_tree("./mocks/dir_one".to_string()).await;
     let dir_two = Tree::build_tree("./mocks/dir_two".to_string()).await;
 
-    let are_equal = Tree::tree_diff(dir_one, dir_two);
+    let diff = Tree::tree_diff(dir_one, dir_two);
 
-    assert_eq!(are_equal, true);
+    assert_eq!(diff, false);
 }
 
 #[tokio::test]
-async fn should_return_false_different_dir_tree() {
+async fn should_return_true_different_dir_tree() {
     let dir_one = Tree::build_tree("./mocks/dir_one".to_string()).await;
     let dir_three = Tree::build_tree("./mocks/dir_three".to_string()).await;
 
-    let are_equal = Tree::tree_diff(dir_one, dir_three);
+    let diff = Tree::tree_diff(dir_one, dir_three);
 
-    assert_eq!(are_equal, false);
+    assert_eq!(diff, true);
 }
 
 #[tokio::test]

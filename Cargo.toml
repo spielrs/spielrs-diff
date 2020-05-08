@@ -1,7 +1,7 @@
 [package]
-name = "spielrs-diff"
+name = "spielrs_diff"
 version = "0.1.0"
-author = "Francisco Jesus Navarro Cortes"
+authors = ["Francisco Jesus Navarro Cortes <spiers@icloud.com>"]
 edition = "2018"
 license= "MIT"
 
