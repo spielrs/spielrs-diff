@@ -1,0 +1,13 @@
+[package]
+name = "spielrs-diff"
+version = "0.1.0"
+author = "Francisco Jesus Navarro Cortes"
+edition = "2018"
+license= "MIT"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+tokio= {version="0.2", features=["fs", "macros", "rt-threaded", "stream"]}
+futures = "0.3"
+async-trait= "0.1"
