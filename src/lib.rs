@@ -1,6 +1,6 @@
 //!
 //! # Spielrs Diff
-//! It is a library which compare two tree direcories asynchronously through [tokio](https://tokio.rs))
+//! It is a library which compare two tree direcories asynchronously through [tokio](https://tokio.rs)
 //! and return true in case that both are different. Useful to create watchers in the servers
 //!
 //! ## How install it
