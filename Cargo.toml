@@ -1,7 +1,11 @@
 [package]
 name = "spielrs_diff"
+description= "It is a library which compare two tree direcories asynchronously"
 version = "0.1.0"
+documentation = "https://docs.rs/crate/spielrs_diff/0.1.0"
 authors = ["Francisco Jesus Navarro Cortes <spiers@icloud.com>"]
+readme = "README.md"
+repository = "https://github.com/spielrs/spielrs-diff"
 edition = "2018"
 license= "MIT"
 
