@@ -1,10 +1,10 @@
 //!
-//! # Spielrs diff
+//! # Spielrs Diff
 //! It is a library which compare two tree direcories asynchronously through [tokio](https://tokio.rs))
 //! and return true in case that both are different. Useful to create watchers in the servers
 //!
 //! ## How install it
-//! 1. add in the Cargo.toml file of the project the dependency:
+//! 1. add the dependency in the Cargo.toml file of the project:
 //!
 //! ```toml
 //! spielrs_diff = "0.1"
