@@ -1,4 +1,13 @@
 # Spielrs Diff
+
+<div align="center">
+    <p>
+        <a href="https://crates.io/crates/spielrs_diff"><img alt="Crate Info" src="https://img.shields.io/badge/spielrs__diff-lib-brightgreen"/></a>
+        <a href="https://docs.rs/spielrs_diff/"><img alt="API Docs" src="https://img.shields.io/badge/spielrs__diff-docs-informational"/></a>
+        <a href="https://discord.gg/VQck8X4"><img alt="Discord Chat" src="https://img.shields.io/discord/500028886025895936.svg?logo=discord&style=flat-square"/></a>
+    </p>
+</div>
+
 It is a library which compare two directories or two files asynchronously through [tokio](https://tokio.rs)
 and return true in case that both are different. Useful to create watchers in the servers
 
