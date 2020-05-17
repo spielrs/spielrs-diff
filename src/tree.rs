@@ -8,7 +8,11 @@ use tokio::stream;
 #[async_trait]
 pub trait TreeBuilder {
     /// Build a vector of `Tree`
-    async fn build_tree(dir_path: String) -> Vec<Tree>;
+    async fn build_tree(
+        dir_path: String,
+        excluding: Option<Vec<String>>,
+        recursive_excluding: bool,
+    ) -> Vec<Tree>;
     /// Compare two tree directories and return true if are different
     fn tree_diff(dir_tree: Vec<Tree>, dir_tree_comp: Vec<Tree>) -> bool;
     /// Get the content by string of all the files in one tree directory
@@ -87,6 +91,8 @@ impl From<Tree> for TreeComp {
 #[async_trait]
 impl TreeBuilder for Tree {
     /// Build a vector of `Tree`
+    /// You can exclude directories or files only from the root path
+    /// of the directory or recursively in the building
     ///
     /// # Example
     ///
@@ -95,25 +101,53 @@ impl TreeBuilder for Tree {
     ///
     /// #[tokio::main]
     /// async fn main() {
-    ///     let dir_one = Tree::build_tree("./mocks/dir_one".to_string()).await;
+    ///     let dir_one = Tree::build_tree(
+    ///         "./mocks/dir_one".to_string(),
+    ///         Some(vec!["purpose".to_string()]),
+    ///         true
+    ///     ).await;
     ///
     ///     println!("{:#?}", dir_one);
     /// }
     /// ```
-    async fn build_tree(dir_path: String) -> Vec<Tree> {
+    async fn build_tree(
+        dir_path: String,
+        excluding: Option<Vec<String>>,
+        recursive_excluding: bool,
+    ) -> Vec<Tree> {
         let mut entries = fs::read_dir(dir_path).await.unwrap();
         let mut tree: Vec<Tree> = vec![];
+        let mut exclude: Vec<String> = vec![];
+        if let Some(mut item) = excluding {
+            exclude.append(&mut item);
+        }
+
         while let Some(entry) = entries.next_entry().await.unwrap() {
-            let path: String = entry.path().into_os_string().into_string().unwrap();
-            tree.push(Tree {
-                name: entry.file_name().into_string().unwrap(),
-                path: path.clone(),
-                subdir: if entry.path().is_dir() {
-                    Some(Tree::build_tree(path).await)
-                } else {
-                    None
-                },
-            });
+            let file_name = entry.file_name().into_string().unwrap();
+
+            if !exclude.clone().into_iter().any(|item| item == file_name) {
+                let path: String = entry.path().into_os_string().into_string().unwrap();
+                tree.push(Tree {
+                    name: entry.file_name().into_string().unwrap(),
+                    path: path.clone(),
+                    subdir: if entry.path().is_dir() {
+                        Some(
+                            Tree::build_tree(
+                                path,
+                                if recursive_excluding {
+                                    Some(exclude.clone())
+                                } else {
+                                    None
+                                },
+                                recursive_excluding,
+                            )
+                            .await,
+                        )
+                    } else {
+                        None
+                    },
+                });
+            }
         }
 
         tree
@@ -128,8 +162,8 @@ impl TreeBuilder for Tree {
     ///
     /// #[tokio::test]
     /// async fn should_return_false_equal_dir_tree() {
-    ///     let dir_one = Tree::build_tree("./mocks/dir_one".to_string()).await;
-    ///     let dir_two = Tree::build_tree("./mocks/dir_two".to_string()).await;
+    ///     let dir_one = Tree::build_tree("./mocks/dir_one".to_string(), None, false).await;
+    ///     let dir_two = Tree::build_tree("./mocks/dir_two".to_string(), None, false).await;
     ///
     ///     let diff = Tree::tree_diff(dir_one, dir_two);
     ///
@@ -153,7 +187,7 @@ impl TreeBuilder for Tree {
     ///
     /// #[tokio::test]
     /// async fn should_return_all_file_content() {
-    ///     let dir_one = Tree::build_tree("./mocks/dir_one".to_string()).await;
+    ///     let dir_one = Tree::build_tree("./mocks/dir_one".to_string(), None, false).await;
     ///     let content = Tree::get_content_files(dir_one).await;
     ///
     ///     assert_eq!(
@@ -188,10 +222,10 @@ impl TreeBuilder for Tree {
     ///
     /// #[tokio::test]
     /// async fn should_return_true_if_both_dir_content_are_equal() {
-    ///     let dir_one = Tree::build_tree("./mocks/dir_one".to_string()).await;
+    ///     let dir_one = Tree::build_tree("./mocks/dir_one".to_string(), None, false).await;
     ///     let content_one = Tree::get_content_files(dir_one).await;
     ///
-    ///     let dir_two = Tree::build_tree("./mocks/dir_two".to_string()).await;
+    ///     let dir_two = Tree::build_tree("./mocks/dir_two".to_string(), None, false).await;
     ///     let content_two = Tree::get_content_files(dir_two).await;
     ///
     ///     assert_eq!(Tree::compare_dir_content(content_one, content_two), true);
@@ -209,8 +243,8 @@ impl TreeBuilder for Tree {
 
 #[tokio::test]
 async fn should_return_false_equal_dir_tree() {
-    let dir_one = Tree::build_tree("./mocks/dir_one".to_string()).await;
-    let dir_two = Tree::build_tree("./mocks/dir_two".to_string()).await;
+    let dir_one = Tree::build_tree("./mocks/dir_one".to_string(), None, false).await;
+    let dir_two = Tree::build_tree("./mocks/dir_two".to_string(), None, false).await;
 
     let diff = Tree::tree_diff(dir_one, dir_two);
 
@@ -219,8 +253,8 @@ async fn should_return_false_equal_dir_tree() {
 
 #[tokio::test]
 async fn should_return_true_different_dir_tree() {
-    let dir_one = Tree::build_tree("./mocks/dir_one".to_string()).await;
-    let dir_three = Tree::build_tree("./mocks/dir_three".to_string()).await;
+    let dir_one = Tree::build_tree("./mocks/dir_one".to_string(), None, false).await;
+    let dir_three = Tree::build_tree("./mocks/dir_three".to_string(), None, false).await;
 
     let diff = Tree::tree_diff(dir_one, dir_three);
 
@@ -229,7 +263,7 @@ async fn should_return_true_different_dir_tree() {
 
 #[tokio::test]
 async fn should_return_all_file_content() {
-    let dir_one = Tree::build_tree("./mocks/dir_one".to_string()).await;
+    let dir_one = Tree::build_tree("./mocks/dir_one".to_string(), None, false).await;
     let content = Tree::get_content_files(dir_one).await;
 
     assert_eq!(
@@ -245,10 +279,10 @@ async fn should_return_all_file_content() {
 
 #[tokio::test]
 async fn should_return_true_if_both_dir_content_are_equal() {
-    let dir_one = Tree::build_tree("./mocks/dir_one".to_string()).await;
+    let dir_one = Tree::build_tree("./mocks/dir_one".to_string(), None, false).await;
     let content_one = Tree::get_content_files(dir_one).await;
 
-    let dir_two = Tree::build_tree("./mocks/dir_two".to_string()).await;
+    let dir_two = Tree::build_tree("./mocks/dir_two".to_string(), None, false).await;
     let content_two = Tree::get_content_files(dir_two).await;
 
     assert_eq!(Tree::compare_dir_content(content_one, content_two), true);
@@ -256,11 +290,53 @@ async fn should_return_true_if_both_dir_content_are_equal() {
 
 #[tokio::test]
 async fn should_return_false_if_both_dir_content_are_differents() {
-    let dir_one = Tree::build_tree("./mocks/dir_one".to_string()).await;
+    let dir_one = Tree::build_tree("./mocks/dir_one".to_string(), None, false).await;
     let content_one = Tree::get_content_files(dir_one).await;
 
-    let dir_four = Tree::build_tree("./mocks/dir_four".to_string()).await;
+    let dir_four = Tree::build_tree("./mocks/dir_four".to_string(), None, false).await;
     let content_four = Tree::get_content_files(dir_four).await;
 
     assert_eq!(Tree::compare_dir_content(content_one, content_four), false);
+}
+
+#[tokio::test]
+async fn should_return_true_if_both_dir_tree_have_different_subdir_excluded_recursively() {
+    let dir_one = Tree::build_tree(
+        "./mocks/dir_one".to_string(),
+        Some(vec!["purpose".to_string()]),
+        true,
+    )
+    .await;
+    let content_one = Tree::get_content_files(dir_one).await;
+
+    let dir_five = Tree::build_tree(
+        "./mocks/dir_five".to_string(),
+        Some(vec!["purpose".to_string()]),
+        true,
+    )
+    .await;
+    let content_five = Tree::get_content_files(dir_five).await;
+
+    assert_eq!(Tree::compare_dir_content(content_one, content_five), true);
+}
+
+#[tokio::test]
+async fn should_return_false_if_both_dir_tree_have_different_subdir_excluded_not_recursively() {
+    let dir_one = Tree::build_tree(
+        "./mocks/dir_one".to_string(),
+        Some(vec!["purpose".to_string()]),
+        false,
+    )
+    .await;
+    let content_one = Tree::get_content_files(dir_one).await;
+
+    let dir_five = Tree::build_tree(
+        "./mocks/dir_five".to_string(),
+        Some(vec!["purpose".to_string()]),
+        false,
+    )
+    .await;
+    let content_five = Tree::get_content_files(dir_five).await;
+
+    assert_eq!(Tree::compare_dir_content(content_one, content_five), false);
 }
