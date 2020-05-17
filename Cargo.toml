@@ -1,6 +1,6 @@
 [package]
 name = "spielrs_diff"
-description= "It is a library which compare two tree direcories asynchronously"
+description= "It is a library which compare two tree direcories or two files asynchronously"
 version = "0.2.0"
 documentation = "https://docs.rs/crate/spielrs_diff/0.2.0"
 authors = ["Francisco Jesus Navarro Cortes <spiers@icloud.com>"]
