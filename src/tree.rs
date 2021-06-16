@@ -2,7 +2,6 @@ use async_trait::async_trait;
 use futures::StreamExt;
 use std::iter::FromIterator;
 use tokio::fs;
-use tokio::stream;
 
 /// Trait for `Tree` to create your own `TreeBuilder`
 #[async_trait]
@@ -203,7 +202,7 @@ impl TreeBuilder for Tree {
     /// ```
     async fn get_content_files(dir_tree: Vec<Tree>) -> Vec<String> {
         let file_list: TreeFlatted = TreeFlatted::from_iter(dir_tree);
-        let files = stream::iter(file_list.0);
+        let files = tokio_stream::iter(file_list.0);
 
         let file_content: Vec<String> = files
             .then(|file| async { fs::read_to_string(file.path).await.unwrap() })
